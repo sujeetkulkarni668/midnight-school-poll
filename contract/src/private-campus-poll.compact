@@ -1,0 +1,124 @@
+pragma language_version >= 0.16;
+
+import CompactStandardLibrary;
+
+// ---------------------------------------------------------------------------
+// Private Campus Poll
+//
+// Public (on-chain) state:
+//   * how many polls exist
+//   * each poll's question / options / status / creator commitment
+//   * an aggregated tally per (poll, option)
+//   * a set of spent nullifiers
+//
+// Private (never leaves the voter's machine):
+//   * the voter's voting secret key
+//   * the option the voter selected (supplied as a witness)
+//
+// The link between "who voted" and "what they voted for" is never written to
+// the ledger: the only voter-derived value published by `vote` is a one-way
+// nullifier H(domain, sk, pollId). It proves "this secret key has not been
+// used in this poll before" without identifying the key.
+// ---------------------------------------------------------------------------
+
+export enum PollStatus { open, closed }
+
+export struct Poll {
+  question: Opaque<"string">;
+  options: Vector<4, Opaque<"string">>;
+  optionCount: Uint<8>;
+  status: PollStatus;
+  creator: Bytes<32>;
+}
+
+export ledger pollCount: Counter;
+export ledger polls: Map<Uint<64>, Poll>;
+// key = tallySlot(pollId, option) so no option-shaped index is stored directly
+export ledger tallies: Map<Bytes<32>, Uint<64>>;
+export ledger nullifiers: Set<Bytes<32>>;
+
+// The voter's long lived voting secret. Stays in the local private state.
+witness localSecretKey(): Bytes<32>;
+// The selected option index. Supplied privately at proving time.
+witness voteChoice(): Uint<8>;
+
+circuit pollIdBytes(pollId: Uint<64>): Bytes<32> {
+  return persistentHash<Uint<64>>(pollId);
+}
+
+circuit voterPublicKey(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "pcp:pk"), sk]);
+}
+
+circuit nullifierFor(sk: Bytes<32>, pollId: Uint<64>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>(
+    [pad(32, "pcp:nullifier"), sk, pollIdBytes(pollId)]
+  );
+}
+
+circuit tallySlot(pollId: Uint<64>, option: Uint<8>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>(
+    [pad(32, "pcp:tally"), pollIdBytes(pollId), persistentHash<Uint<8>>(option)]
+  );
+}
+
+// Create a poll. `optionCount` selects how many of the four option slots are
+// in use, so a poll can have 2, 3 or 4 options.
+export circuit createPoll(
+  question: Opaque<"string">,
+  options: Vector<4, Opaque<"string">>,
+  optionCount: Uint<8>
+): [] {
+  assert(optionCount >= 2, "a poll needs at least two options");
+  assert(optionCount <= 4, "a poll can have at most four options");
+
+  const id = pollCount.read() as Uint<64>;
+  polls.insert(disclose(id), Poll {
+    question: disclose(question),
+    options: disclose(options),
+    optionCount: disclose(optionCount),
+    status: PollStatus.open,
+    creator: disclose(voterPublicKey(localSecretKey()))
+  });
+  pollCount.increment(1);
+}
+
+// Only the account that created the poll can close it.
+export circuit closePoll(pollId: Uint<64>): [] {
+  assert(polls.member(disclose(pollId)), "poll does not exist");
+  const poll = polls.lookup(disclose(pollId));
+  assert(poll.creator == voterPublicKey(localSecretKey()), "only the poll creator can close this poll");
+  assert(poll.status == PollStatus.open, "poll is already closed");
+  polls.insert(disclose(pollId), Poll {
+    question: poll.question,
+    options: poll.options,
+    optionCount: poll.optionCount,
+    status: PollStatus.closed,
+    creator: poll.creator
+  });
+}
+
+// Cast a private vote.
+//
+//   valid poll + valid option + unused nullifier  =>  one anonymous tally bump
+//
+// `choice` is a witness: it is constrained inside the proof but the voter's
+// identity is never disclosed, so the published increment cannot be attributed
+// to any wallet.
+export circuit vote(pollId: Uint<64>): [] {
+  assert(polls.member(disclose(pollId)), "poll does not exist");
+  const poll = polls.lookup(disclose(pollId));
+  assert(poll.status == PollStatus.open, "this poll is closed");
+
+  const sk = localSecretKey();
+  const choice = voteChoice();
+  assert(choice < poll.optionCount, "invalid option");
+
+  const nullifier = nullifierFor(sk, disclose(pollId));
+  assert(!nullifiers.member(disclose(nullifier)), "you have already voted in this poll");
+  nullifiers.insert(disclose(nullifier));
+
+  const slot = disclose(tallySlot(disclose(pollId), choice));
+  const previous = tallies.member(slot) ? tallies.lookup(slot) : 0 as Uint<64>;
+  tallies.insert(slot, (previous + 1) as Uint<64>);
+}

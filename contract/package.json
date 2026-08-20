@@ -1,0 +1,12 @@
+{
+  "name": "private-campus-poll-contract",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Compact smart contract for Private Campus Poll",
+  "scripts": {
+    "build": "compactc --skip-zk src/private-campus-poll.compact managed/private-campus-poll",
+    "build:zk": "compactc src/private-campus-poll.compact managed/private-campus-poll",
+    "clean": "rm -rf managed"
+  }
+}
