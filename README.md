@@ -16,6 +16,7 @@
 
 - <img width="1599" height="949" alt="Screenshot 2026-08-15 024557 png" src="https://github.com/user-attachments/assets/5aed41e4-9a72-48bc-900e-1485dfb26e39" />
 
+<img width="1365" height="720" alt="compile_circuits" src="https://github.com/user-attachments/assets/14056de4-b3b3-49a1-9f76-9c80bd346c2b" />
 
 ### Deployment Confirmation
 
