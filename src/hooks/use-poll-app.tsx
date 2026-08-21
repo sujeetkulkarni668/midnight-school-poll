@@ -24,6 +24,8 @@ import {
   listWalletOptions,
   NETWORK_ID,
   ONE_AM,
+  LACE,
+  DEMO_WALLET,
   type ConnectedWallet,
   type WalletOption,
 } from "@/lib/midnight/connector";
@@ -67,10 +69,29 @@ export function PollAppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setLedger(loadLedger() ?? seedLedger());
     setSecretKey(loadSecretKey("local"));
-    setWalletInstalled(isWalletInstalled());
-    setWalletOptions(listWalletOptions());
+    
+    const refreshWallets = () => {
+      setWalletInstalled(isWalletInstalled());
+      setWalletOptions(listWalletOptions());
+    };
+
+    refreshWallets();
     void detectRuntime(false).then(setRuntime);
     setReady(true);
+
+    // Extension content scripts often inject with a slight delay
+    const intervals = [100, 300, 600, 1200, 2500].map((delay) =>
+      setTimeout(refreshWallets, delay),
+    );
+
+    window.addEventListener("load", refreshWallets);
+    window.addEventListener("focus", refreshWallets);
+
+    return () => {
+      intervals.forEach(clearTimeout);
+      window.removeEventListener("load", refreshWallets);
+      window.removeEventListener("focus", refreshWallets);
+    };
   }, []);
 
   const commit = useCallback((next: LedgerState) => {
@@ -227,4 +248,4 @@ export function usePollApp() {
   return context;
 }
 
-export { NETWORK_ID, ONE_AM };
+export { NETWORK_ID, ONE_AM, LACE, DEMO_WALLET };

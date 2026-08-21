@@ -40,7 +40,7 @@ export const chainConfig = (): ChainConfig => ({
 
 /** Compiled Compact artifacts, emitted by `npm run contract:build`. */
 export const loadContractArtifacts = async (): Promise<unknown | null> => {
-  const modules = import.meta.glob("../../../contract/managed/**/index.cjs");
+  const modules = import.meta.glob("../../../contract/managed/**/contract-info.json");
   const entry = Object.values(modules)[0];
   if (!entry) return null;
   try {
