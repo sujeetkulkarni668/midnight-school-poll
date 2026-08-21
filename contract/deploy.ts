@@ -113,6 +113,8 @@ async function main() {
   let networkId: NetworkId.NetworkId;
   if (rawNetwork === 'preview') {
     networkId = NetworkId.NetworkId.Preview;
+  } else if (rawNetwork === 'preprod') {
+    networkId = NetworkId.NetworkId.PreProd;
   } else if (rawNetwork === 'testnet-02' || rawNetwork === 'testnet') {
     networkId = NetworkId.NetworkId.TestNet;
   } else if (rawNetwork === 'undeployed') {
@@ -250,7 +252,9 @@ async function main() {
   const faucetUrl =
     rawNetwork === 'preview'
       ? 'https://faucet.preview.midnight.network'
-      : 'https://faucet.testnet-02.midnight.network';
+      : rawNetwork === 'preprod'
+        ? 'https://faucet.preprod.midnight.network'
+        : 'https://faucet.testnet-02.midnight.network';
 
   if (totalUnshieldedBalance === 0n && dustBalance === 0n) {
     console.error(`\n[ERROR] Deployer wallet has 0 Unshielded NIGHT and 0 DUST balance.`);

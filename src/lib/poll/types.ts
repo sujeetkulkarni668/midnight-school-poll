@@ -46,11 +46,14 @@ export class PollError extends Error {
 /** Friendly copy for anything that can go wrong, in student language. */
 export const friendlyError = (error: unknown): string => {
   if (error instanceof PollError) return error.message;
+  if (error && typeof error === "object" && "name" in error && (error.name === "WalletError" || error.name === "PollError")) {
+    return (error as Error).message;
+  }
   const message = error instanceof Error ? error.message : String(error);
-  if (/user rejected|denied|cancell?ed/i.test(message))
+  if (/user rejected|denied|cancell?ed|declined|disallowed|aborted/i.test(message))
     return "You cancelled the request in your wallet.";
   if (/not installed|no wallet|undefined/i.test(message))
-    return "No Midnight wallet found. Install 1AM (https://1am.xyz) and reload.";
+    return "No Midnight wallet found. Please install a supported extension and reload.";
   if (/proof/i.test(message))
     return "Proof generation failed. Make sure your proof server is running, then try again.";
   if (/fetch|network|timeout/i.test(message))

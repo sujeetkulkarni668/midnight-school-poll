@@ -56,12 +56,10 @@ export const LACE = {
 export const DEMO_WALLET = {
   id: "demo",
   rdns: "campus.student.demo",
-  name: "Demo Student Wallet",
+  name: "Campus Demo ID",
   site: "#",
   install: "#",
 } as const;
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const isOneAm = (wallet: { rdns?: string; name?: string }): boolean =>
   /(^|[^a-z0-9])1am([^a-z0-9]|$)/i.test(`${wallet.rdns ?? ""} ${wallet.name ?? ""}`);
@@ -69,18 +67,27 @@ export const isOneAm = (wallet: { rdns?: string; name?: string }): boolean =>
 export const isLace = (wallet: { rdns?: string; name?: string }): boolean =>
   /lace/i.test(`${wallet.rdns ?? ""} ${wallet.name ?? ""}`);
 
-/** Find injected Lace wallet across all possible extension namespaces */
+const isRejectError = (error: unknown): boolean => {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /reject|denied|cancel|closed|declined|disallowed|aborted/i.test(msg);
+};
+
+/** Find injected Lace Midnight connector */
 export const findLaceWallet = (): InitialAPI | null => {
   if (typeof window === "undefined") return null;
   const win = window as unknown as Record<string, unknown>;
 
   // 1. Check window.midnight object
-  const midnightObj = win['midnight'] as Record<string, InitialAPI> | undefined;
+  const midnightObj = win["midnight"] as Record<string, InitialAPI> | undefined;
   if (midnightObj && typeof midnightObj === "object") {
-    if (midnightObj['mnLace'] && typeof midnightObj['mnLace'].connect === "function") return midnightObj['mnLace'];
-    if (midnightObj['lace'] && typeof midnightObj['lace'].connect === "function") return midnightObj['lace'];
+    if (midnightObj["mnLace"] && typeof midnightObj["mnLace"].connect === "function") {
+      return midnightObj["mnLace"];
+    }
     if (midnightObj["io.lace.midnight"] && typeof midnightObj["io.lace.midnight"].connect === "function") {
       return midnightObj["io.lace.midnight"];
+    }
+    if (midnightObj["lace"] && typeof midnightObj["lace"].connect === "function") {
+      return midnightObj["lace"];
     }
     if (midnightObj["lace-midnight"] && typeof midnightObj["lace-midnight"].connect === "function") {
       return midnightObj["lace-midnight"];
@@ -93,24 +100,48 @@ export const findLaceWallet = (): InitialAPI | null => {
   }
 
   // 2. Check direct window globals
-  const directMnLace = win['mnLace'] as InitialAPI | undefined;
+  const directMnLace = win["mnLace"] as InitialAPI | undefined;
   if (directMnLace && typeof directMnLace.connect === "function") return directMnLace;
 
-  const directLace = win['lace'] as InitialAPI | undefined;
+  const directLace = win["lace"] as InitialAPI | undefined;
   if (directLace && typeof directLace.connect === "function") return directLace;
 
   // 3. Check window.cardano namespace if midnight connector is exposed there
-  const cardanoObj = win['cardano'] as Record<string, unknown> | undefined;
-  const cardanoLace = cardanoObj?.['lace'] as Record<string, unknown> | undefined;
-  if (cardanoLace && typeof cardanoLace['midnight'] === "object") {
-    const cardanoMidnight = cardanoLace['midnight'] as InitialAPI;
+  const cardanoObj = win["cardano"] as Record<string, unknown> | undefined;
+  const cardanoLace = cardanoObj?.["lace"] as Record<string, unknown> | undefined;
+  if (cardanoLace && typeof cardanoLace["midnight"] === "object") {
+    const cardanoMidnight = cardanoLace["midnight"] as InitialAPI;
     if (cardanoMidnight && typeof cardanoMidnight.connect === "function") return cardanoMidnight;
   }
-  const cardanoMnLace = cardanoObj?.['mnLace'] as InitialAPI | undefined;
+  const cardanoMnLace = cardanoObj?.["mnLace"] as InitialAPI | undefined;
   if (cardanoMnLace && typeof cardanoMnLace.connect === "function") {
     return cardanoMnLace;
   }
 
+  return null;
+};
+
+export interface CardanoLaceExtension {
+  enable: () => Promise<{
+    getChangeAddress?: () => Promise<string>;
+    getUsedAddresses?: () => Promise<string[]>;
+    getUnusedAddresses?: () => Promise<string[]>;
+    getRewardAddresses?: () => Promise<string[]>;
+  }>;
+  isEnabled?: () => Promise<boolean>;
+  name?: string;
+  icon?: string;
+  apiVersion?: string;
+}
+
+/** Find injected Lace Cardano connector (window.cardano.lace) */
+export const findCardanoLace = (): CardanoLaceExtension | null => {
+  if (typeof window === "undefined") return null;
+  const win = window as unknown as Record<string, unknown>;
+  const cardano = win["cardano"] as Record<string, CardanoLaceExtension> | undefined;
+  if (cardano?.["lace"] && typeof cardano["lace"].enable === "function") {
+    return cardano["lace"];
+  }
   return null;
 };
 
@@ -119,7 +150,7 @@ export const find1AmWallet = (): InitialAPI | null => {
   if (typeof window === "undefined") return null;
   const win = window as unknown as Record<string, unknown>;
 
-  const midnightObj = win['midnight'] as Record<string, InitialAPI> | undefined;
+  const midnightObj = win["midnight"] as Record<string, InitialAPI> | undefined;
   if (midnightObj && typeof midnightObj === "object") {
     if (midnightObj["1am"] && typeof midnightObj["1am"].connect === "function") return midnightObj["1am"];
     if (midnightObj["xyz.oneam.wallet"] && typeof midnightObj["xyz.oneam.wallet"].connect === "function") {
@@ -132,7 +163,7 @@ export const find1AmWallet = (): InitialAPI | null => {
     }
   }
 
-  const direct1Am = (win['oneAm'] || win["1am"]) as InitialAPI | undefined;
+  const direct1Am = (win["oneAm"] || win["1am"]) as InitialAPI | undefined;
   if (direct1Am && typeof direct1Am.connect === "function") return direct1Am;
 
   return null;
@@ -171,9 +202,9 @@ export const listInjectedWallets = (): InitialAPI[] => {
   });
 };
 
-export const isWalletInstalled = () => listInjectedWallets().length > 0;
+export const isLaceInstalled = () => Boolean(findLaceWallet() || findCardanoLace());
 export const isOneAmInstalled = () => Boolean(find1AmWallet());
-export const isLaceInstalled = () => Boolean(findLaceWallet());
+export const isWalletInstalled = () => isLaceInstalled() || isOneAmInstalled() || listInjectedWallets().length > 0;
 
 export interface WalletOption {
   rdns: string;
@@ -190,13 +221,14 @@ export const listWalletOptions = (): WalletOption[] => {
 
   // Lace option
   const laceInjected = findLaceWallet();
+  const cardanoLace = findCardanoLace();
   options.push({
     rdns: laceInjected?.rdns ?? LACE.rdns,
-    name: laceInjected?.name ?? LACE.name,
-    icon: laceInjected?.icon ?? "",
+    name: laceInjected?.name ?? cardanoLace?.name ?? LACE.name,
+    icon: laceInjected?.icon ?? cardanoLace?.icon ?? "",
     isOneAm: false,
     isLace: true,
-    installed: Boolean(laceInjected),
+    installed: Boolean(laceInjected || cardanoLace),
   });
 
   // 1AM option
@@ -231,193 +263,302 @@ export const NETWORK_ID = import.meta.env["VITE_MIDNIGHT_NETWORK_ID"] ?? "testne
 
 /**
  * Connect to a live wallet extension.
- * Supports both Lace (Midnight & Cardano connectors) and 1AM with graceful fallback
- * so voting is never blocked by remote node network drops.
+ * Connects directly to Lace or 1AM by requesting user permission.
  */
 export const connectWallet = async (preferred?: string): Promise<ConnectedWallet> => {
   // Explicit Demo Student Wallet connection
   if (preferred === DEMO_WALLET.rdns || preferred === "demo") {
-    return createSimulatedWallet(DEMO_WALLET.name, DEMO_WALLET.rdns);
+    return createSimulatedWallet(DEMO_WALLET.name, DEMO_WALLET.rdns, null, true);
   }
 
-  // 1. Connecting to Lace Wallet
+  // 1. Explicit Lace selection
   if (preferred === LACE.rdns || /lace/i.test(preferred || "")) {
     return connectLaceWallet();
   }
 
-  // 2. Connecting to 1AM Wallet
+  // 2. Explicit 1AM selection
   if (preferred === ONE_AM.rdns || /1am/i.test(preferred || "")) {
     return connect1AmWallet();
   }
 
-  // 3. Generic / first available
-  const lace = findLaceWallet();
-  if (lace) return connectLaceWallet();
+  // 3. Any other injected wallet selected by RDNS
+  if (preferred) {
+    const injected = listInjectedWallets().find((w) => w.rdns === preferred);
+    if (injected) {
+      try {
+        const api = await injected.connect(NETWORK_ID);
+        const addrs = await api.getShieldedAddresses?.().catch(() => null);
+        const unshielded = await api.getUnshieldedAddress?.().catch(() => null);
+        const address = addrs?.shieldedAddress || unshielded?.unshieldedAddress || `mn1_${preferred}`;
+        const coinPublicKey = addrs?.shieldedCoinPublicKey || address;
 
-  const oneAm = find1AmWallet();
-  if (oneAm) return connect1AmWallet();
+        return {
+          rdns: injected.rdns,
+          name: injected.name,
+          icon: injected.icon,
+          apiVersion: injected.apiVersion,
+          address,
+          coinPublicKey,
+          api,
+          networkId: NETWORK_ID,
+          isDemo: false,
+        };
+      } catch (err) {
+        if (isRejectError(err)) {
+          throw new WalletError("REJECTED", `You declined the connection request in ${injected.name}.`);
+        }
+        throw new WalletError("FAILED", `Failed to connect to ${injected.name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
 
-  // If no extension found, create a persistent student wallet so user can vote immediately
-  return createSimulatedWallet("Campus Student Wallet", "campus.student.demo");
+  // 4. Generic / first available installed wallet
+  if (isLaceInstalled()) {
+    return connectLaceWallet();
+  }
+
+  if (isOneAmInstalled()) {
+    return connect1AmWallet();
+  }
+
+  const otherWallets = listInjectedWallets();
+  if (otherWallets.length > 0) {
+    return connectWallet(otherWallets[0].rdns);
+  }
+
+  // If no wallet is installed at all, clearly explain rather than silently creating fake keys
+  throw new WalletError(
+    "NOT_INSTALLED",
+    "No Midnight wallet extension detected. Please install Lace Wallet or 1AM Wallet, or use Campus Demo ID to test instantly.",
+  );
 };
 
-/** Specialized connection flow for Lace Wallet */
+/** Specialized live connection flow for Lace Wallet taking extension permission */
 async function connectLaceWallet(): Promise<ConnectedWallet> {
-  const win = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>) : {};
-  let lastError: unknown = null;
-
-  // Path A: Check for Midnight Lace connector
   const midnightLace = findLaceWallet();
+  const cardanoLace = findCardanoLace();
+
+  if (!midnightLace && !cardanoLace) {
+    throw new WalletError(
+      "NOT_INSTALLED",
+      "Lace Wallet extension is not detected. Please install the Lace extension (https://www.lace.io) and ensure it is enabled in your browser.",
+    );
+  }
+
+  // Path A: Check for Midnight Lace connector (window.midnight.mnLace / io.lace.midnight)
   if (midnightLace && typeof midnightLace.connect === "function") {
     try {
-      const networksToTry = [NETWORK_ID, "testnet-02", "devnet", "testnet", "undeployed", ""];
       let api: ConnectedAPI | null = null;
-
-      for (const net of networksToTry) {
+      try {
+        api = await midnightLace.connect(NETWORK_ID);
+      } catch (netErr) {
+        if (isRejectError(netErr)) {
+          throw new WalletError("REJECTED", "You declined the connection request in Lace.");
+        }
+        // If connect with networkId threw due to network arg, retry with empty network or no arg
         try {
-          api = await midnightLace.connect(net);
-          if (api) break;
-        } catch (err) {
-          lastError = err;
-          const msg = err instanceof Error ? err.message : String(err);
-          if (/reject|denied|cancel|closed/i.test(msg)) {
+          api = await (midnightLace.connect as (net?: string) => Promise<ConnectedAPI>)();
+        } catch (retryErr) {
+          if (isRejectError(retryErr)) {
             throw new WalletError("REJECTED", "You declined the connection request in Lace.");
+          }
+          if (!cardanoLace) {
+            throw retryErr;
           }
         }
       }
 
       if (api) {
-        let address = "";
-        let coinPublicKey = "";
+        let shieldedAddr = "";
+        let coinPk = "";
+        let unshieldedAddr = "";
+
         try {
-          const addrs = await api.getShieldedAddresses();
-          address = addrs.shieldedAddress || "";
-          coinPublicKey = addrs.shieldedCoinPublicKey || "";
-        } catch {
-          // If shielded addresses call fails due to node network, generate deterministic lace address
-          const fallback = createSimulatedWallet("Lace Wallet", LACE.rdns, api);
-          address = fallback.address;
-          coinPublicKey = fallback.coinPublicKey;
+          const addrs = await api.getShieldedAddresses?.();
+          if (addrs) {
+            shieldedAddr = addrs.shieldedAddress || "";
+            coinPk = addrs.shieldedCoinPublicKey || "";
+          }
+        } catch (err) {
+          console.warn("Lace getShieldedAddresses info:", err);
+        }
+
+        if (!shieldedAddr) {
+          try {
+            const unshielded = await api.getUnshieldedAddress?.();
+            if (unshielded) {
+              unshieldedAddr = unshielded.unshieldedAddress || "";
+            }
+          } catch (err) {
+            console.warn("Lace getUnshieldedAddress info:", err);
+          }
+        }
+
+        const address = shieldedAddr || unshieldedAddr || coinPk;
+        const coinPublicKey = coinPk || shieldedAddr || unshieldedAddr;
+
+        if (!address) {
+          throw new WalletError("FAILED", "Connected to Lace, but could not retrieve account address.");
         }
 
         return {
           rdns: midnightLace.rdns || LACE.rdns,
-          name: "Lace Wallet",
+          name: midnightLace.name || "Lace Wallet",
           icon: midnightLace.icon || "",
           apiVersion: midnightLace.apiVersion || "4.0.0",
-          address: address || `mn1shielded_lace_${randomSecretKey().slice(0, 16)}`,
-          coinPublicKey: coinPublicKey || `pk_lace_${randomSecretKey().slice(0, 16)}`,
+          address,
+          coinPublicKey,
           api,
           networkId: NETWORK_ID,
           isDemo: false,
         };
       }
     } catch (err) {
-      if (err instanceof WalletError && err.code === "REJECTED") throw err;
-      lastError = err;
+      if (err instanceof WalletError) throw err;
+      if (isRejectError(err)) {
+        throw new WalletError("REJECTED", "You declined the connection request in Lace.");
+      }
+      if (!cardanoLace) {
+        throw new WalletError("FAILED", `Failed to connect to Lace: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 
-  // Path B: Check for Cardano Lace connector (window.cardano.lace.enable)
-  const cardanoObj = win['cardano'] as Record<string, { enable?: () => Promise<unknown>; name?: string; icon?: string }> | undefined;
-  const cardanoLace = cardanoObj?.['lace'];
+  // Path B: Check for Cardano Lace connector (window.cardano.lace.enable())
   if (cardanoLace && typeof cardanoLace.enable === "function") {
     try {
-      const cardanoApi = (await cardanoLace.enable()) as {
-        getChangeAddress?: () => Promise<string>;
-        getUsedAddresses?: () => Promise<string[]>;
-      };
-
+      const cardanoApi = await cardanoLace.enable();
       let address = "";
+
       if (typeof cardanoApi.getChangeAddress === "function") {
         address = await cardanoApi.getChangeAddress();
       } else if (typeof cardanoApi.getUsedAddresses === "function") {
         const addrs = await cardanoApi.getUsedAddresses();
         address = addrs[0] || "";
+      } else if (typeof cardanoApi.getUnusedAddresses === "function") {
+        const addrs = await cardanoApi.getUnusedAddresses();
+        address = addrs[0] || "";
+      } else if (typeof cardanoApi.getRewardAddresses === "function") {
+        const addrs = await cardanoApi.getRewardAddresses();
+        address = addrs[0] || "";
+      }
+
+      if (!address) {
+        throw new WalletError("FAILED", "Connected to Lace, but no account address was returned.");
       }
 
       return {
         rdns: LACE.rdns,
-        name: "Lace Wallet",
+        name: cardanoLace.name || "Lace Wallet",
         icon: cardanoLace.icon || "",
-        apiVersion: "1.0.0",
-        address: address ? `mn1lace${address.slice(0, 24)}` : `mn1lace_${randomSecretKey().slice(0, 16)}`,
-        coinPublicKey: `pk_lace_${randomSecretKey().slice(0, 24)}`,
+        apiVersion: cardanoLace.apiVersion || "1.0.0",
+        address,
+        coinPublicKey: address,
         api: null,
         networkId: NETWORK_ID,
         isDemo: false,
       };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/reject|denied|cancel|closed/i.test(msg)) {
+      if (err instanceof WalletError) throw err;
+      if (isRejectError(err)) {
         throw new WalletError("REJECTED", "You declined the connection request in Lace.");
       }
-      lastError = err;
+      throw new WalletError(
+        "FAILED",
+        `Failed to connect to Lace: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
-  // Path C: If extension threw network error or node was unreachable, connect Lace in Local Verified mode
-  console.info("Lace live connection operating in local verified mode due to network status:", lastError);
-  return createSimulatedWallet("Lace Wallet", LACE.rdns);
+  throw new WalletError("FAILED", "Could not establish connection with Lace wallet extension.");
 }
 
-/** Specialized connection flow for 1AM Wallet */
+/** Specialized live connection flow for 1AM Wallet taking extension permission */
 async function connect1AmWallet(): Promise<ConnectedWallet> {
   const oneAm = find1AmWallet();
-  if (oneAm && typeof oneAm.connect === "function") {
-    try {
-      const networksToTry = [NETWORK_ID, "testnet-02", "devnet", "testnet", "undeployed", ""];
-      let api: ConnectedAPI | null = null;
-
-      for (const net of networksToTry) {
-        try {
-          api = await oneAm.connect(net);
-          if (api) break;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (/reject|denied|cancel|closed/i.test(msg)) {
-            throw new WalletError("REJECTED", "You declined the connection request in 1AM.");
-          }
-        }
-      }
-
-      if (api) {
-        let address = "";
-        let coinPublicKey = "";
-        try {
-          const addrs = await api.getShieldedAddresses();
-          address = addrs.shieldedAddress || "";
-          coinPublicKey = addrs.shieldedCoinPublicKey || "";
-        } catch {
-          const fallback = createSimulatedWallet("1AM Wallet", ONE_AM.rdns, api);
-          address = fallback.address;
-          coinPublicKey = fallback.coinPublicKey;
-        }
-
-        return {
-          rdns: oneAm.rdns || ONE_AM.rdns,
-          name: "1AM Wallet",
-          icon: oneAm.icon || "",
-          apiVersion: oneAm.apiVersion || "4.0.0",
-          address: address || `mn1shielded_1am_${randomSecretKey().slice(0, 16)}`,
-          coinPublicKey: coinPublicKey || `pk_1am_${randomSecretKey().slice(0, 16)}`,
-          api,
-          networkId: NETWORK_ID,
-          isDemo: false,
-        };
-      }
-    } catch (err) {
-      if (err instanceof WalletError && err.code === "REJECTED") throw err;
-    }
+  if (!oneAm) {
+    throw new WalletError(
+      "NOT_INSTALLED",
+      "1AM Wallet extension is not detected. Please install 1AM Wallet (https://1am.xyz) and ensure it is enabled in your browser.",
+    );
   }
 
-  return createSimulatedWallet("1AM Wallet", ONE_AM.rdns);
+  try {
+    let api: ConnectedAPI | null = null;
+    try {
+      api = await oneAm.connect(NETWORK_ID);
+    } catch (netErr) {
+      if (isRejectError(netErr)) {
+        throw new WalletError("REJECTED", "You declined the connection request in 1AM.");
+      }
+      api = await (oneAm.connect as (net?: string) => Promise<ConnectedAPI>)();
+    }
+
+    if (!api) {
+      throw new WalletError("FAILED", "1AM Wallet did not return a connected API session.");
+    }
+
+    let shieldedAddr = "";
+    let coinPk = "";
+    let unshieldedAddr = "";
+
+    try {
+      const addrs = await api.getShieldedAddresses?.();
+      if (addrs) {
+        shieldedAddr = addrs.shieldedAddress || "";
+        coinPk = addrs.shieldedCoinPublicKey || "";
+      }
+    } catch (err) {
+      console.warn("1AM getShieldedAddresses info:", err);
+    }
+
+    if (!shieldedAddr) {
+      try {
+        const unshielded = await api.getUnshieldedAddress?.();
+        if (unshielded) {
+          unshieldedAddr = unshielded.unshieldedAddress || "";
+        }
+      } catch (err) {
+        console.warn("1AM getUnshieldedAddress info:", err);
+      }
+    }
+
+    const address = shieldedAddr || unshieldedAddr || coinPk;
+    const coinPublicKey = coinPk || shieldedAddr || unshieldedAddr;
+
+    if (!address) {
+      throw new WalletError("FAILED", "Connected to 1AM, but could not retrieve account address.");
+    }
+
+    return {
+      rdns: oneAm.rdns || ONE_AM.rdns,
+      name: oneAm.name || "1AM Wallet",
+      icon: oneAm.icon || "",
+      apiVersion: oneAm.apiVersion || "4.0.0",
+      address,
+      coinPublicKey,
+      api,
+      networkId: NETWORK_ID,
+      isDemo: false,
+    };
+  } catch (err) {
+    if (err instanceof WalletError) throw err;
+    if (isRejectError(err)) {
+      throw new WalletError("REJECTED", "You declined the connection request in 1AM.");
+    }
+    throw new WalletError(
+      "FAILED",
+      `Failed to connect to 1AM: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
-const createSimulatedWallet = (
+/** Simulated test wallet for the instant Campus Demo ID option */
+export const createSimulatedWallet = (
   name: string,
   rdns: string,
   api: ConnectedAPI | null = null,
+  isDemo = true,
 ): ConnectedWallet => {
   const existingKey = window.localStorage.getItem(`pcp:sim_wallet:${rdns}`);
   const key = existingKey || randomSecretKey();
@@ -437,6 +578,6 @@ const createSimulatedWallet = (
     coinPublicKey,
     api,
     networkId: "simulation",
-    isDemo: false,
+    isDemo,
   };
 };
