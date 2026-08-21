@@ -1,7 +1,7 @@
 # Private Campus Poll
 
 ## Deployment Details
-
+- **Vercel Link:** [Midnight Preview](https://midnight-school-poll.vercel.app/)
 - **Network:** Midnight Preview
 - **Contract Address:** `5165f1e5a05546bb57c2ff7aed5e169e8a39f7dff42a792e3ba893823ca5f15f`
 - **RPC:** `https://rpc.preview.midnight.network`
