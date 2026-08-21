@@ -55,8 +55,8 @@ VITE_INDEXER_WS_URI="wss://indexer.preview.midnight.network/api/v4/graphql/ws"
 VITE_NODE_URI="https://rpc.preview.midnight.network"
 VITE_PROOF_SERVER_URI="https://proof-server.preview.midnight.network"
 
-# Deployer Wallet Seed (32-byte Hex or BIP-39 mnemonic)
-MIDNIGHT_WALLET_SEED="40d16e9e045853dc0230a0d5bf9d2809e6ef3d97d513219a585755d61a2bb44f"
+# Deployer Wallet Seed (BIP-39 mnemonic)
+MIDNIGHT_WALLET_SEED="shuffle crunch verify barely pave fine gallery weasel comic fabric steel believe debris false alone rural pudding boost guide segment notice deposit nuclear donkey"
 ```
 
 ### Step 3: Compile Smart Contract & Generate ZK Artifacts
@@ -76,7 +76,7 @@ npm run contract:deploy
 ```
 
 **Execution Flow:**
-1. Derives shielded, unshielded, and DUST wallet keys from seed.
+1. Resolves and derives shielded, unshielded, and DUST wallet keys directly from the constant deployer wallet.
 2. Synchronizes wallet state with the Midnight ledger indexer.
 3. Automatically creates DUST registration recipe if needed.
 4. Generates zero-knowledge proofs for contract constructor via Proof Server.

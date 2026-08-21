@@ -3,11 +3,10 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import * as ws from 'isomorphic-ws';
+import WebSocket from 'isomorphic-ws';
+const WSConstructor = (WebSocket as any).default || WebSocket;
+(globalThis as any).WebSocket = WSConstructor;
 import * as bip39 from 'bip39';
-
-// Ensure global WebSocket is available for Midnight Wallet SDK subscriptions in Node
-(globalThis as any).WebSocket = ws.WebSocket || (ws as any).default || ws;
 
 import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
@@ -61,46 +60,48 @@ function updateEnvFile(key: string, value: string) {
   fs.writeFileSync(rootEnvPath, envContent.trim() + '\n', 'utf8');
 }
 
-function resolveSeed(): { seed: Uint8Array; seedHex: string; isNew: boolean } {
-  const envSeed =
-    process.env.MIDNIGHT_WALLET_SEED ||
-    process.env.WALLET_SEED ||
-    process.env.DEPLOYER_SEED ||
-    process.env.MIDNIGHT_SEED ||
-    process.env.MNEMONIC ||
-    process.env.SEED_PHRASE;
+const CONSTANT_WALLET_MNEMONIC =
+  'shuffle crunch verify barely pave fine gallery weasel comic fabric steel believe debris false alone rural pudding boost guide segment notice deposit nuclear donkey';
 
-  if (envSeed && envSeed.trim().length > 0) {
-    const trimmed = envSeed.trim();
-    // Check if mnemonic
-    if (trimmed.includes(' ')) {
+function parseSeedOrMnemonic(raw: string): { seed: Uint8Array; seedHex: string } | null {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return null;
+
+  // Check BIP-39 mnemonic phrase
+  if (trimmed.includes(' ')) {
+    try {
       const seedBuffer = bip39.mnemonicToSeedSync(trimmed).subarray(0, 32);
       return {
         seed: new Uint8Array(seedBuffer),
         seedHex: Buffer.from(seedBuffer).toString('hex'),
-        isNew: false,
       };
+    } catch {
+      return null;
     }
-    // Hex seed
-    const cleanHex = trimmed.replace(/^0x/i, '');
-    if (cleanHex.length === 64 && /^[0-9a-fA-F]{64}$/.test(cleanHex)) {
-      const seedBuffer = Buffer.from(cleanHex, 'hex');
-      return {
-        seed: new Uint8Array(seedBuffer),
-        seedHex: cleanHex,
-        isNew: false,
-      };
-    }
-    console.warn(`[WARN] Provided seed/mnemonic format was not recognized as 64-char hex or BIP-39 mnemonic. Generating a fresh seed.`);
   }
 
-  const randomBytes = crypto.randomBytes(32);
-  const seedHex = randomBytes.toString('hex');
-  return {
-    seed: new Uint8Array(randomBytes),
-    seedHex,
-    isNew: true,
-  };
+  // Check 64-character hex seed
+  const cleanHex = trimmed.replace(/^0x/i, '');
+  if (cleanHex.length === 64 && /^[0-9a-fA-F]{64}$/.test(cleanHex)) {
+    const seedBuffer = Buffer.from(cleanHex, 'hex');
+    return {
+      seed: new Uint8Array(seedBuffer),
+      seedHex: cleanHex.toLowerCase(),
+    };
+  }
+
+  return null;
+}
+
+function resolveDeployerSeed(): { seed: Uint8Array; seedHex: string } {
+  const envSeed =
+    process.env.MIDNIGHT_WALLET_SEED ||
+    process.env.WALLET_SEED ||
+    process.env.DEPLOYER_SEED ||
+    CONSTANT_WALLET_MNEMONIC;
+
+  const resolved = parseSeedOrMnemonic(envSeed) || parseSeedOrMnemonic(CONSTANT_WALLET_MNEMONIC)!;
+  return resolved;
 }
 
 async function main() {
@@ -134,23 +135,17 @@ async function main() {
 
   setNetworkId(networkId);
 
-  // 1. Resolve Seed and Wallet Keys
-  const { seed, seedHex, isNew } = resolveSeed();
-  if (isNew) {
-    console.log(`[Wallet] Generated new deployer seed.`);
-    console.log(`[Wallet] Seed (hex): ${seedHex}`);
-    updateEnvFile('MIDNIGHT_WALLET_SEED', seedHex);
-    console.log(`[Wallet] Saved MIDNIGHT_WALLET_SEED to .env\n`);
-  } else {
-    console.log(`[Wallet] Using deployer seed from environment.`);
-  }
+  // 1. Resolve Constant Deployer Seed & Keys
+  const { seed, seedHex } = resolveDeployerSeed();
+  console.log(`[Wallet] Deployer Wallet:   Constant Wallet`);
+  console.log(`[Wallet] Seed (hex):        ${seedHex.slice(0, 12)}...${seedHex.slice(-8)}`);
 
   const shieldedSecretKeys = ZswapSecretKeys.fromSeed(seed);
   const dustSecretKey = DustSecretKey.fromSeed(seed);
   const unshieldedKeystore = createKeystore(seed, networkId);
   const unshieldedPublicKey = PublicKey.fromKeyStore(unshieldedKeystore);
 
-  const unshieldedAddress = unshieldedKeystore.getBech32Address();
+  const unshieldedAddress = unshieldedKeystore.getBech32Address().asString();
   console.log(`[Wallet] Unshielded Address (Faucet recipient):`);
   console.log(`         >>> ${unshieldedAddress} <<<\n`);
 
@@ -167,7 +162,7 @@ async function main() {
   const proofProvider = httpClientProofProvider(proofServerUri, zkConfigProvider);
 
   console.log(`[Providers] Connecting to Indexer: ${indexerUri}`);
-  const publicDataProvider = indexerPublicDataProvider(indexerUri, indexerWsUri, ws.WebSocket);
+  const publicDataProvider = indexerPublicDataProvider(indexerUri, indexerWsUri, WSConstructor);
 
   console.log(`[Providers] Setting up local private state storage...`);
   const privateStateProvider = levelPrivateStateProvider({
@@ -252,13 +247,19 @@ async function main() {
     }
   }
 
+  const faucetUrl =
+    rawNetwork === 'preview'
+      ? 'https://faucet.preview.midnight.network'
+      : 'https://faucet.testnet-02.midnight.network';
+
   if (totalUnshieldedBalance === 0n && dustBalance === 0n) {
-    console.error(`\n[ERROR] Deployer wallet has 0 NIGHT and 0 DUST balance.`);
-    console.error(`Please fund this wallet address using the Midnight Testnet faucet:`);
-    console.error(`  1. Open: https://faucet.testnet-02.midnight.network`);
+    console.error(`\n[ERROR] Deployer wallet has 0 Unshielded NIGHT and 0 DUST balance.`);
+    console.error(`On Midnight, smart contract deployment requires UNSHIELDED tokens (to balance and submit the deployment tx).`);
+    console.error(`Please request test tokens for this deployer's Unshielded address:`);
+    console.error(`  1. Open Faucet:  ${faucetUrl}`);
     console.error(`  2. Paste Address: ${unshieldedAddress}`);
-    console.error(`  3. Request tNIGHT / tDUST tokens`);
-    console.error(`  4. Re-run: npm run contract:deploy\n`);
+    console.error(`  3. Request tNIGHT / tDUST`);
+    console.error(`  4. Once received in faucet, re-run: npm run contract:deploy\n`);
     await wallet.stop();
     process.exit(1);
   }

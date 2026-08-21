@@ -75,10 +75,10 @@ export const findLaceWallet = (): InitialAPI | null => {
   const win = window as unknown as Record<string, unknown>;
 
   // 1. Check window.midnight object
-  const midnightObj = win.midnight as Record<string, InitialAPI> | undefined;
+  const midnightObj = win['midnight'] as Record<string, InitialAPI> | undefined;
   if (midnightObj && typeof midnightObj === "object") {
-    if (midnightObj.mnLace && typeof midnightObj.mnLace.connect === "function") return midnightObj.mnLace;
-    if (midnightObj.lace && typeof midnightObj.lace.connect === "function") return midnightObj.lace;
+    if (midnightObj['mnLace'] && typeof midnightObj['mnLace'].connect === "function") return midnightObj['mnLace'];
+    if (midnightObj['lace'] && typeof midnightObj['lace'].connect === "function") return midnightObj['lace'];
     if (midnightObj["io.lace.midnight"] && typeof midnightObj["io.lace.midnight"].connect === "function") {
       return midnightObj["io.lace.midnight"];
     }
@@ -93,20 +93,22 @@ export const findLaceWallet = (): InitialAPI | null => {
   }
 
   // 2. Check direct window globals
-  const directMnLace = win.mnLace as InitialAPI | undefined;
+  const directMnLace = win['mnLace'] as InitialAPI | undefined;
   if (directMnLace && typeof directMnLace.connect === "function") return directMnLace;
 
-  const directLace = win.lace as InitialAPI | undefined;
+  const directLace = win['lace'] as InitialAPI | undefined;
   if (directLace && typeof directLace.connect === "function") return directLace;
 
   // 3. Check window.cardano namespace if midnight connector is exposed there
-  const cardanoObj = win.cardano as Record<string, unknown> | undefined;
-  if (cardanoObj?.lace && typeof (cardanoObj.lace as Record<string, unknown>).midnight === "object") {
-    const cardanoMidnight = (cardanoObj.lace as Record<string, unknown>).midnight as InitialAPI;
+  const cardanoObj = win['cardano'] as Record<string, unknown> | undefined;
+  const cardanoLace = cardanoObj?.['lace'] as Record<string, unknown> | undefined;
+  if (cardanoLace && typeof cardanoLace['midnight'] === "object") {
+    const cardanoMidnight = cardanoLace['midnight'] as InitialAPI;
     if (cardanoMidnight && typeof cardanoMidnight.connect === "function") return cardanoMidnight;
   }
-  if (cardanoObj?.mnLace && typeof (cardanoObj.mnLace as InitialAPI).connect === "function") {
-    return cardanoObj.mnLace as InitialAPI;
+  const cardanoMnLace = cardanoObj?.['mnLace'] as InitialAPI | undefined;
+  if (cardanoMnLace && typeof cardanoMnLace.connect === "function") {
+    return cardanoMnLace;
   }
 
   return null;
@@ -117,7 +119,7 @@ export const find1AmWallet = (): InitialAPI | null => {
   if (typeof window === "undefined") return null;
   const win = window as unknown as Record<string, unknown>;
 
-  const midnightObj = win.midnight as Record<string, InitialAPI> | undefined;
+  const midnightObj = win['midnight'] as Record<string, InitialAPI> | undefined;
   if (midnightObj && typeof midnightObj === "object") {
     if (midnightObj["1am"] && typeof midnightObj["1am"].connect === "function") return midnightObj["1am"];
     if (midnightObj["xyz.oneam.wallet"] && typeof midnightObj["xyz.oneam.wallet"].connect === "function") {
@@ -130,7 +132,7 @@ export const find1AmWallet = (): InitialAPI | null => {
     }
   }
 
-  const direct1Am = (win.oneAm || win["1am"]) as InitialAPI | undefined;
+  const direct1Am = (win['oneAm'] || win["1am"]) as InitialAPI | undefined;
   if (direct1Am && typeof direct1Am.connect === "function") return direct1Am;
 
   return null;
@@ -317,10 +319,11 @@ async function connectLaceWallet(): Promise<ConnectedWallet> {
   }
 
   // Path B: Check for Cardano Lace connector (window.cardano.lace.enable)
-  const cardanoObj = win.cardano as Record<string, { enable?: () => Promise<unknown>; name?: string; icon?: string }> | undefined;
-  if (cardanoObj?.lace && typeof cardanoObj.lace.enable === "function") {
+  const cardanoObj = win['cardano'] as Record<string, { enable?: () => Promise<unknown>; name?: string; icon?: string }> | undefined;
+  const cardanoLace = cardanoObj?.['lace'];
+  if (cardanoLace && typeof cardanoLace.enable === "function") {
     try {
-      const cardanoApi = (await cardanoObj.lace.enable()) as {
+      const cardanoApi = (await cardanoLace.enable()) as {
         getChangeAddress?: () => Promise<string>;
         getUsedAddresses?: () => Promise<string[]>;
       };
@@ -336,7 +339,7 @@ async function connectLaceWallet(): Promise<ConnectedWallet> {
       return {
         rdns: LACE.rdns,
         name: "Lace Wallet",
-        icon: cardanoObj.lace.icon || "",
+        icon: cardanoLace.icon || "",
         apiVersion: "1.0.0",
         address: address ? `mn1lace${address.slice(0, 24)}` : `mn1lace_${randomSecretKey().slice(0, 16)}`,
         coinPublicKey: `pk_lace_${randomSecretKey().slice(0, 24)}`,
