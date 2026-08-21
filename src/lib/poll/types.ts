@@ -46,7 +46,12 @@ export class PollError extends Error {
 /** Friendly copy for anything that can go wrong, in student language. */
 export const friendlyError = (error: unknown): string => {
   if (error instanceof PollError) return error.message;
-  if (error && typeof error === "object" && "name" in error && (error.name === "WalletError" || error.name === "PollError")) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "name" in error &&
+    (error.name === "WalletError" || error.name === "PollError")
+  ) {
     return (error as Error).message;
   }
   const message = error instanceof Error ? error.message : String(error);

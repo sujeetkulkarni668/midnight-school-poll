@@ -29,13 +29,16 @@ export function Hero() {
           Vote privately. <span className="text-primary">Verify publicly.</span>
         </h1>
         <p className="mt-4 max-w-xl text-base text-muted-foreground">
-          Campus polls where the network proves your vote is valid and unique — without ever learning
-          what you picked.
+          Campus polls where the network proves your vote is valid and unique — without ever
+          learning what you picked.
         </p>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
           {points.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="card-shadow rounded-xl border border-border/70 bg-card/70 p-4">
+            <div
+              key={title}
+              className="card-shadow rounded-xl border border-border/70 bg-card/70 p-4"
+            >
               <Icon className="size-4 text-primary" />
               <h2 className="mt-3 font-display text-sm font-semibold">{title}</h2>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p>

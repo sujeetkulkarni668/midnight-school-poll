@@ -1,6 +1,9 @@
 # Private Campus Poll
 
+[![CI/CD](https://github.com/sujeetkulkarni668/midnight-school-poll/actions/workflows/ci.yml/badge.svg)](https://github.com/sujeetkulkarni668/midnight-school-poll/actions/workflows/ci.yml)
+
 ## Deployment Details
+
 - **Vercel Link:** [Midnight Preview](https://midnight-school-poll.vercel.app/)
 - **Network:** Midnight Preview
 - **Contract Address:** `5165f1e5a05546bb57c2ff7aed5e169e8a39f7dff42a792e3ba893823ca5f15f`
@@ -43,7 +46,7 @@ That is not a secret ballot. It enables coercion ("show me your wallet"),
 vote-buying, and permanent political profiling of students. Hiding it behind a
 backend just moves the trust to a server admin.
 
-Midnight's zero-knowledge execution model lets a contract *check* facts about
+Midnight's zero-knowledge execution model lets a contract _check_ facts about
 data it never sees. The chosen option is a **private witness**: it is constrained
 inside the proof (it must be a real option of a real, open poll) but is never
 published alongside an identity.
@@ -53,7 +56,7 @@ published alongside an identity.
 - Connect a Midnight wallet through the DApp Connector API (connector 4.x).
 - Create polls with 2–4 options.
 - Poll list with question, options, total votes, open/closed status and whether
-  *you* already voted.
+  _you_ already voted.
 - Private voting: option supplied as a witness, only an anonymous tally slot is
   incremented.
 - On-chain double-vote protection via per-poll nullifiers.
@@ -86,21 +89,22 @@ authoritative.
 ## Privacy model
 
 ### Privacy Claim
+
 > **Core Guarantee**: No participant or external observer—including node operators, indexers, poll creators, or other voters—can determine which option a specific voter selected, or associate any voter's identity or wallet address with their vote choice, while still mathematically guaranteeing on-chain that every counted vote is valid, authorized, and cast exactly once per poll.
 
 ### What an Observer CAN and CANNOT Learn
 
-| Observer Visibility | Data / Event | Details |
-| :--- | :--- | :--- |
-| **CAN Learn** | **Poll Metadata** | Poll question, candidate options, option count, and open/closed status (the ballot is public by design). |
-| **CAN Learn** | **Creator Commitment** | The creator's public commitment `H("pcp:pk", sk)` to verify authority to close the poll (does not reveal the creator's wallet address). |
-| **CAN Learn** | **Aggregate Tallies** | Aggregate counts per option `tallies[H("pcp:tally", pollId, option)]` as anonymous slots are incremented. |
-| **CAN Learn** | **Spent Nullifiers** | The one-way hash `H("pcp:nullifier", sk, pollId)` added to the on-chain nullifier set when a vote is accepted. |
-| **CAN Learn** | **Transaction Metadata** | Standard blockchain execution metadata (transaction timestamp, block inclusion, gas/fee payment). |
-| **CANNOT Learn** | **Voter Identity ↔ Choice Link** | Which voter picked which option. The voter's choice is kept as a local private witness inside the ZK proof. |
-| **CANNOT Learn** | **Voting Secret Key (`sk`)** | The voter's secret key (`localSecretKey()`), which remains strictly on the client device. |
-| **CANNOT Learn** | **Identity from Nullifier** | Who generated a given nullifier, due to preimage resistance and one-way cryptographic hashing. |
-| **CANNOT Learn** | **Cross-Poll Voter Activity** | Whether two votes in different polls came from the same person (nullifiers across different polls are completely unlinkable). |
+| Observer Visibility | Data / Event                     | Details                                                                                                                                 |
+| :------------------ | :------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
+| **CAN Learn**       | **Poll Metadata**                | Poll question, candidate options, option count, and open/closed status (the ballot is public by design).                                |
+| **CAN Learn**       | **Creator Commitment**           | The creator's public commitment `H("pcp:pk", sk)` to verify authority to close the poll (does not reveal the creator's wallet address). |
+| **CAN Learn**       | **Aggregate Tallies**            | Aggregate counts per option `tallies[H("pcp:tally", pollId, option)]` as anonymous slots are incremented.                               |
+| **CAN Learn**       | **Spent Nullifiers**             | The one-way hash `H("pcp:nullifier", sk, pollId)` added to the on-chain nullifier set when a vote is accepted.                          |
+| **CAN Learn**       | **Transaction Metadata**         | Standard blockchain execution metadata (transaction timestamp, block inclusion, gas/fee payment).                                       |
+| **CANNOT Learn**    | **Voter Identity ↔ Choice Link** | Which voter picked which option. The voter's choice is kept as a local private witness inside the ZK proof.                             |
+| **CANNOT Learn**    | **Voting Secret Key (`sk`)**     | The voter's secret key (`localSecretKey()`), which remains strictly on the client device.                                               |
+| **CANNOT Learn**    | **Identity from Nullifier**      | Who generated a given nullifier, due to preimage resistance and one-way cryptographic hashing.                                          |
+| **CANNOT Learn**    | **Cross-Poll Voter Activity**    | Whether two votes in different polls came from the same person (nullifiers across different polls are completely unlinkable).           |
 
 ---
 
@@ -108,12 +112,12 @@ authoritative.
 
 **Public (written to the ledger)**
 
-| Value | Why it is safe |
-| --- | --- |
-| `pollCount`, poll question, options, status | The ballot itself is meant to be public |
-| `creator` | A commitment `H("pcp:pk", sk)`, not a wallet address |
-| `tallies[H("pcp:tally", pollId, option)]` | An aggregate count, with no voter identity attached |
-| `nullifiers` | One-way `H("pcp:nullifier", sk, pollId)` values |
+| Value                                       | Why it is safe                                       |
+| ------------------------------------------- | ---------------------------------------------------- |
+| `pollCount`, poll question, options, status | The ballot itself is meant to be public              |
+| `creator`                                   | A commitment `H("pcp:pk", sk)`, not a wallet address |
+| `tallies[H("pcp:tally", pollId, option)]`   | An aggregate count, with no voter identity attached  |
+| `nullifiers`                                | One-way `H("pcp:nullifier", sk, pollId)` values      |
 
 **Private (never leaves the device)**
 
@@ -125,6 +129,7 @@ authoritative.
 ### Cryptographic Guarantees & Implementation
 
 **How validity is proven.** The `vote` circuit asserts, inside the zero-knowledge proof:
+
 1. The target poll exists (`polls.member(pollId)`).
 2. The poll is active and open (`poll.status == PollStatus.open`).
 3. The selected option index is in-bounds (`choice < poll.optionCount`).
@@ -133,10 +138,11 @@ authoritative.
 If any assertion fails, no valid zero-knowledge proof can be constructed and no transaction can be submitted. Frontend checks are for UX only; verification is enforced purely by the Midnight contract circuits.
 
 **How double voting is prevented.** `nullifier = H("pcp:nullifier", sk, pollId)` is deterministic per (student, poll) and is inserted into a public set. A second vote with the same key produces the same nullifier and is rejected by the contract. Because the hash is one-way and domain-separated:
+
 - The nullifier reveals nothing about `sk`.
 - Nullifiers for different polls are unlinkable (`pollId` is included in the hash preimage).
 
-**Honest limitation — what is *not* hidden.** The tally increment itself is a public state change, so a chain observer can see that *someone* voted for option 2. What they cannot do is link that increment to a wallet: the transaction discloses no voter identity, only the nullifier. So this gives **unlinkability of voter ↔ choice**, not concealment of the aggregate delta. Hiding the increments too would require homomorphic tallying, which current Compact ledger types do not express. This is documented rather than faked.
+**Honest limitation — what is _not_ hidden.** The tally increment itself is a public state change, so a chain observer can see that _someone_ voted for option 2. What they cannot do is link that increment to a wallet: the transaction discloses no voter identity, only the nullifier. So this gives **unlinkability of voter ↔ choice**, not concealment of the aggregate delta. Hiding the increments too would require homomorphic tallying, which current Compact ledger types do not express. This is documented rather than faked.
 
 **Eligibility (MVP).** Eligibility is "holds a voting secret key", enforced by nullifier uniqueness. The architecture is built so this can be tightened without touching the UI: replace the nullifier check with a Merkle membership proof over a `HistoricMerkleTree` of registered student commitments, adding a merkle-path witness. No centralised login is introduced anywhere.
 
@@ -149,13 +155,13 @@ cp .env.example .env
 
 ## Configuration
 
-| Variable | Meaning |
-| --- | --- |
-| `VITE_MIDNIGHT_NETWORK_ID` | network hint passed to `wallet.connect()` (`undeployed`, `testnet`, `mainnet`) |
-| `VITE_NODE_URI` | Midnight node RPC |
-| `VITE_INDEXER_URI` / `VITE_INDEXER_WS_URI` | indexer GraphQL endpoints |
-| `VITE_PROOF_SERVER_URI` | local proof server |
-| `VITE_POLL_CONTRACT_ADDRESS` | address of the deployed poll contract |
+| Variable                                   | Meaning                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| `VITE_MIDNIGHT_NETWORK_ID`                 | network hint passed to `wallet.connect()` (`undeployed`, `testnet`, `mainnet`) |
+| `VITE_NODE_URI`                            | Midnight node RPC                                                              |
+| `VITE_INDEXER_URI` / `VITE_INDEXER_WS_URI` | indexer GraphQL endpoints                                                      |
+| `VITE_PROOF_SERVER_URI`                    | local proof server                                                             |
+| `VITE_POLL_CONTRACT_ADDRESS`               | address of the deployed poll contract                                          |
 
 No secrets are required — every variable above is public client configuration.
 
@@ -206,9 +212,9 @@ with a missing/closed poll.
 1. Open the app → the campus workshop poll is already there.
 2. **Connect Wallet**.
 3. Pick an option → **Vote Privately**.
-4. Watch proving → submitting → confirming → *Vote confirmed*.
+4. Watch proving → submitting → confirming → _Vote confirmed_.
 5. Aggregated results update.
-6. Try voting again → *"You have already voted in this poll."*
+6. Try voting again → _"You have already voted in this poll."_
 7. Point at the ledger: it proves validity and uniqueness, and it does not know
    what you chose.
 

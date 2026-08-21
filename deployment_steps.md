@@ -35,13 +35,16 @@ This document outlines the step-by-step procedure for deploying the **Private Ca
 ## 3. Step-by-Step Deployment Guide
 
 ### Step 1: Clone Repository & Install Dependencies
+
 ```bash
 cd midnight-poll-main
 npm install
 ```
 
 ### Step 2: Configure Environment Variables
+
 Create or verify the `.env` file in the root directory:
+
 ```env
 # Network ID
 VITE_MIDNIGHT_NETWORK_ID="preview"
@@ -60,22 +63,29 @@ MIDNIGHT_WALLET_SEED="shuffle crunch verify barely pave fine gallery weasel comi
 ```
 
 ### Step 3: Compile Smart Contract & Generate ZK Artifacts
+
 Compile the Compact contract circuits and generate proving & verifying keys:
+
 ```bash
 npm run contract:build:zk
 ```
+
 This outputs the compiled artifacts in `contract/managed/private-campus-poll/` including:
+
 - `contract/index.cjs` & `contract/index.d.ts`
 - `keys/createPoll.prover`, `keys/vote.prover`, `keys/closePoll.prover`
 - `zkir/createPoll.zkir`, `zkir/vote.zkir`, `zkir/closePoll.zkir`
 
 ### Step 4: Execute Contract Deployment
+
 Run the automated deployment script:
+
 ```bash
 npm run contract:deploy
 ```
 
 **Execution Flow:**
+
 1. Resolves and derives shielded, unshielded, and DUST wallet keys directly from the constant deployer wallet.
 2. Synchronizes wallet state with the Midnight ledger indexer.
 3. Automatically creates DUST registration recipe if needed.
@@ -90,10 +100,13 @@ npm run contract:deploy
 ## 4. Verification & Testing
 
 Verify that the contract is live on-chain and unit tests pass:
+
 ```bash
 npm test
 ```
+
 And start the development frontend:
+
 ```bash
 npm run dev
 ```

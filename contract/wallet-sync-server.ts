@@ -1,7 +1,7 @@
-import http from 'node:http';
-import { exec } from 'node:child_process';
-import crypto from 'node:crypto';
-import * as bip39 from 'bip39';
+import http from "node:http";
+import { exec } from "node:child_process";
+import crypto from "node:crypto";
+import * as bip39 from "bip39";
 
 export interface WalletSyncResult {
   seed: Uint8Array;
@@ -10,16 +10,16 @@ export interface WalletSyncResult {
 }
 
 export function parseSeedOrMnemonic(raw: string): { seed: Uint8Array; seedHex: string } | null {
-  const trimmed = (raw || '').trim();
+  const trimmed = (raw || "").trim();
   if (!trimmed) return null;
 
   // Check BIP-39 mnemonic phrase
-  if (trimmed.includes(' ')) {
+  if (trimmed.includes(" ")) {
     try {
       const seedBuffer = bip39.mnemonicToSeedSync(trimmed).subarray(0, 32);
       return {
         seed: new Uint8Array(seedBuffer),
-        seedHex: Buffer.from(seedBuffer).toString('hex'),
+        seedHex: Buffer.from(seedBuffer).toString("hex"),
       };
     } catch {
       return null;
@@ -27,9 +27,9 @@ export function parseSeedOrMnemonic(raw: string): { seed: Uint8Array; seedHex: s
   }
 
   // Check 64-character hex seed
-  const cleanHex = trimmed.replace(/^0x/i, '');
+  const cleanHex = trimmed.replace(/^0x/i, "");
   if (cleanHex.length === 64 && /^[0-9a-fA-F]{64}$/.test(cleanHex)) {
-    const seedBuffer = Buffer.from(cleanHex, 'hex');
+    const seedBuffer = Buffer.from(cleanHex, "hex");
     return {
       seed: new Uint8Array(seedBuffer),
       seedHex: cleanHex.toLowerCase(),
@@ -41,11 +41,11 @@ export function parseSeedOrMnemonic(raw: string): { seed: Uint8Array; seedHex: s
 
 function openBrowser(url: string) {
   const platform = process.platform;
-  let command = '';
+  let command = "";
 
-  if (platform === 'win32') {
+  if (platform === "win32") {
     command = `start "" "${url}"`;
-  } else if (platform === 'darwin') {
+  } else if (platform === "darwin") {
     command = `open "${url}"`;
   } else {
     command = `xdg-open "${url}"`;
@@ -335,7 +335,7 @@ function getSyncHtml(port: number, envSeedHex?: string): string {
     <!-- Quick Action Seed Generators -->
     <div class="quick-actions">
       <button class="btn btn-secondary btn-sm" onclick="generateRandomSeed()">🎲 Generate Fresh Random Seed</button>
-      ${envSeedHex ? `<button class="btn btn-secondary btn-sm" onclick="useEnvSeed('${envSeedHex}')">💾 Load Saved .env Seed</button>` : ''}
+      ${envSeedHex ? `<button class="btn btn-secondary btn-sm" onclick="useEnvSeed('${envSeedHex}')">💾 Load Saved .env Seed</button>` : ""}
     </div>
 
     <div class="form-group">
@@ -598,41 +598,46 @@ function getSyncHtml(port: number, envSeedHex?: string): string {
 export async function startWalletSyncServer(
   preferredPort = 4242,
   addressDeriver?: (seed: Uint8Array) => string,
-  envSeedHex?: string
+  envSeedHex?: string,
 ): Promise<WalletSyncResult> {
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
       // CORS headers
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-      if (req.method === 'OPTIONS') {
+      if (req.method === "OPTIONS") {
         res.writeHead(204);
         res.end();
         return;
       }
 
-      if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html' || req.url?.startsWith('/?'))) {
+      if (
+        req.method === "GET" &&
+        (req.url === "/" || req.url === "/index.html" || req.url?.startsWith("/?"))
+      ) {
         const html = getSyncHtml(preferredPort, envSeedHex);
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         res.end(html);
         return;
       }
 
-      if (req.method === 'POST' && req.url === '/api/derive-address') {
-        let body = '';
-        req.on('data', (chunk) => { body += chunk.toString(); });
-        req.on('end', () => {
+      if (req.method === "POST" && req.url === "/api/derive-address") {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+        });
+        req.on("end", () => {
           try {
             const parsed = JSON.parse(body);
             const resolved = parseSeedOrMnemonic(parsed.seedOrMnemonic);
             if (!resolved) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: false, error: 'Invalid seed' }));
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ success: false, error: "Invalid seed" }));
               return;
             }
-            let address = '';
+            let address = "";
             if (addressDeriver) {
               try {
                 address = addressDeriver(resolved.seed);
@@ -640,34 +645,36 @@ export async function startWalletSyncServer(
                 // Ignore derivation err
               }
             }
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: true, address, seedHex: resolved.seedHex }));
           } catch (err: any) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: err?.message || 'Error' }));
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: false, error: err?.message || "Error" }));
           }
         });
         return;
       }
 
-      if (req.method === 'POST' && req.url === '/api/sync-wallet') {
-        let body = '';
-        req.on('data', (chunk) => {
+      if (req.method === "POST" && req.url === "/api/sync-wallet") {
+        let body = "";
+        req.on("data", (chunk) => {
           body += chunk.toString();
         });
 
-        req.on('end', () => {
+        req.on("end", () => {
           try {
             const parsed = JSON.parse(body);
             const resolved = parseSeedOrMnemonic(parsed.seedOrMnemonic);
 
             if (!resolved) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: false, error: 'Invalid seed or mnemonic phrase.' }));
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(
+                JSON.stringify({ success: false, error: "Invalid seed or mnemonic phrase." }),
+              );
               return;
             }
 
-            let address = '';
+            let address = "";
             if (addressDeriver) {
               try {
                 address = addressDeriver(resolved.seed);
@@ -676,13 +683,13 @@ export async function startWalletSyncServer(
               }
             }
 
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.writeHead(200, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify({
                 success: true,
                 seedHex: resolved.seedHex,
                 address,
-              })
+              }),
             );
 
             // Shutdown server gracefully after responding
@@ -691,25 +698,27 @@ export async function startWalletSyncServer(
               resolve({
                 seed: resolved.seed,
                 seedHex: resolved.seedHex,
-                source: parsed.source || 'Chrome / Browser Portal',
+                source: parsed.source || "Chrome / Browser Portal",
               });
             }, 600);
           } catch (err: any) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: err?.message || 'Server error' }));
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: false, error: err?.message || "Server error" }));
           }
         });
         return;
       }
 
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not Found');
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("Not Found");
     });
 
-    server.on('error', (err: any) => {
-      if (err.code === 'EADDRINUSE') {
+    server.on("error", (err: any) => {
+      if (err.code === "EADDRINUSE") {
         // Try next port if 4242 is busy
-        console.warn(`[Browser Sync] Port ${preferredPort} was in use. Trying port ${preferredPort + 1}...`);
+        console.warn(
+          `[Browser Sync] Port ${preferredPort} was in use. Trying port ${preferredPort + 1}...`,
+        );
         server.listen(preferredPort + 1);
       } else {
         reject(err);

@@ -83,13 +83,19 @@ export const findLaceWallet = (): InitialAPI | null => {
     if (midnightObj["mnLace"] && typeof midnightObj["mnLace"].connect === "function") {
       return midnightObj["mnLace"];
     }
-    if (midnightObj["io.lace.midnight"] && typeof midnightObj["io.lace.midnight"].connect === "function") {
+    if (
+      midnightObj["io.lace.midnight"] &&
+      typeof midnightObj["io.lace.midnight"].connect === "function"
+    ) {
       return midnightObj["io.lace.midnight"];
     }
     if (midnightObj["lace"] && typeof midnightObj["lace"].connect === "function") {
       return midnightObj["lace"];
     }
-    if (midnightObj["lace-midnight"] && typeof midnightObj["lace-midnight"].connect === "function") {
+    if (
+      midnightObj["lace-midnight"] &&
+      typeof midnightObj["lace-midnight"].connect === "function"
+    ) {
       return midnightObj["lace-midnight"];
     }
     for (const [k, v] of Object.entries(midnightObj)) {
@@ -152,8 +158,12 @@ export const find1AmWallet = (): InitialAPI | null => {
 
   const midnightObj = win["midnight"] as Record<string, InitialAPI> | undefined;
   if (midnightObj && typeof midnightObj === "object") {
-    if (midnightObj["1am"] && typeof midnightObj["1am"].connect === "function") return midnightObj["1am"];
-    if (midnightObj["xyz.oneam.wallet"] && typeof midnightObj["xyz.oneam.wallet"].connect === "function") {
+    if (midnightObj["1am"] && typeof midnightObj["1am"].connect === "function")
+      return midnightObj["1am"];
+    if (
+      midnightObj["xyz.oneam.wallet"] &&
+      typeof midnightObj["xyz.oneam.wallet"].connect === "function"
+    ) {
       return midnightObj["xyz.oneam.wallet"];
     }
     for (const [k, v] of Object.entries(midnightObj)) {
@@ -204,7 +214,8 @@ export const listInjectedWallets = (): InitialAPI[] => {
 
 export const isLaceInstalled = () => Boolean(findLaceWallet() || findCardanoLace());
 export const isOneAmInstalled = () => Boolean(find1AmWallet());
-export const isWalletInstalled = () => isLaceInstalled() || isOneAmInstalled() || listInjectedWallets().length > 0;
+export const isWalletInstalled = () =>
+  isLaceInstalled() || isOneAmInstalled() || listInjectedWallets().length > 0;
 
 export interface WalletOption {
   rdns: string;
@@ -289,7 +300,8 @@ export const connectWallet = async (preferred?: string): Promise<ConnectedWallet
         const api = await injected.connect(NETWORK_ID);
         const addrs = await api.getShieldedAddresses?.().catch(() => null);
         const unshielded = await api.getUnshieldedAddress?.().catch(() => null);
-        const address = addrs?.shieldedAddress || unshielded?.unshieldedAddress || `mn1_${preferred}`;
+        const address =
+          addrs?.shieldedAddress || unshielded?.unshieldedAddress || `mn1_${preferred}`;
         const coinPublicKey = addrs?.shieldedCoinPublicKey || address;
 
         return {
@@ -305,9 +317,15 @@ export const connectWallet = async (preferred?: string): Promise<ConnectedWallet
         };
       } catch (err) {
         if (isRejectError(err)) {
-          throw new WalletError("REJECTED", `You declined the connection request in ${injected.name}.`);
+          throw new WalletError(
+            "REJECTED",
+            `You declined the connection request in ${injected.name}.`,
+          );
         }
-        throw new WalletError("FAILED", `Failed to connect to ${injected.name}: ${err instanceof Error ? err.message : String(err)}`);
+        throw new WalletError(
+          "FAILED",
+          `Failed to connect to ${injected.name}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   }
@@ -398,7 +416,10 @@ async function connectLaceWallet(): Promise<ConnectedWallet> {
         const coinPublicKey = coinPk || shieldedAddr || unshieldedAddr;
 
         if (!address) {
-          throw new WalletError("FAILED", "Connected to Lace, but could not retrieve account address.");
+          throw new WalletError(
+            "FAILED",
+            "Connected to Lace, but could not retrieve account address.",
+          );
         }
 
         return {
@@ -419,7 +440,10 @@ async function connectLaceWallet(): Promise<ConnectedWallet> {
         throw new WalletError("REJECTED", "You declined the connection request in Lace.");
       }
       if (!cardanoLace) {
-        throw new WalletError("FAILED", `Failed to connect to Lace: ${err instanceof Error ? err.message : String(err)}`);
+        throw new WalletError(
+          "FAILED",
+          `Failed to connect to Lace: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   }
@@ -565,7 +589,10 @@ export const createSimulatedWallet = (
   if (!existingKey) {
     window.localStorage.setItem(`pcp:sim_wallet:${rdns}`, key);
   }
-  const cleanKey = key.replace(/[^a-f0-9]/gi, "").padEnd(64, "0").slice(0, 64);
+  const cleanKey = key
+    .replace(/[^a-f0-9]/gi, "")
+    .padEnd(64, "0")
+    .slice(0, 64);
   const address = `mn1shielded${cleanKey.slice(0, 24)}`;
   const coinPublicKey = `pk_${cleanKey.slice(0, 24)}`;
 

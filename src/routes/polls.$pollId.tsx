@@ -45,7 +45,9 @@ function PollDetail() {
   const poll = polls.find((entry) => entry.id === id);
 
   if (!ready)
-    return <main className="mx-auto max-w-3xl px-4 py-16 text-sm text-muted-foreground">Loading…</main>;
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-16 text-sm text-muted-foreground">Loading…</main>
+    );
   if (!poll) throw notFound();
 
   const pollResults = results(id);

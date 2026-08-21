@@ -23,7 +23,9 @@ export function WalletButton() {
           ) : (
             <Wallet className="size-3.5 text-primary" />
           )}
-          <span className="font-sans font-medium text-foreground">{wallet.name.replace(/ wallet/i, "")}</span>
+          <span className="font-sans font-medium text-foreground">
+            {wallet.name.replace(/ wallet/i, "")}
+          </span>
           <span className="opacity-70">({shorten(wallet.address, 6, 4)})</span>
         </span>
         <Button

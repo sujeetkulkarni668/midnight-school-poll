@@ -59,11 +59,7 @@ export const createPoll = (
 };
 
 /** circuit closePoll(pollId) */
-export const closePoll = (
-  ledger: LedgerState,
-  pollId: number,
-  secretKey: string,
-): LedgerState => {
+export const closePoll = (ledger: LedgerState, pollId: number, secretKey: string): LedgerState => {
   const poll = requirePoll(ledger, pollId);
   if (poll.creator !== voterPublicKey(secretKey))
     throw new PollError("NOT_CREATOR", "Only the student who created this poll can close it.");

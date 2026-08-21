@@ -142,8 +142,9 @@ function Footer() {
   return (
     <footer className="border-t border-border/60 py-8">
       <p className="mx-auto max-w-5xl px-4 text-xs text-muted-foreground">
-        Private Campus Poll · Compact contract in <code>contract/src/private-campus-poll.compact</code>{" "}
-        · the network verifies validity and uniqueness, never your choice.
+        Private Campus Poll · Compact contract in{" "}
+        <code>contract/src/private-campus-poll.compact</code> · the network verifies validity and
+        uniqueness, never your choice.
       </p>
     </footer>
   );

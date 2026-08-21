@@ -69,7 +69,7 @@ export function PollAppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setLedger(loadLedger() ?? seedLedger());
     setSecretKey(loadSecretKey("local"));
-    
+
     const refreshWallets = () => {
       setWalletInstalled(isWalletInstalled());
       setWalletOptions(listWalletOptions());
@@ -80,9 +80,7 @@ export function PollAppProvider({ children }: { children: ReactNode }) {
     setReady(true);
 
     // Extension content scripts often inject with a slight delay
-    const intervals = [100, 300, 600, 1200, 2500].map((delay) =>
-      setTimeout(refreshWallets, delay),
-    );
+    const intervals = [100, 300, 600, 1200, 2500].map((delay) => setTimeout(refreshWallets, delay));
 
     window.addEventListener("load", refreshWallets);
     window.addEventListener("focus", refreshWallets);

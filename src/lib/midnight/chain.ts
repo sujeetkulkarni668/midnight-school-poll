@@ -31,10 +31,15 @@ export interface ChainConfig {
 }
 
 export const chainConfig = (): ChainConfig => ({
-  indexerUri: import.meta.env["VITE_INDEXER_URI"] || "https://indexer.testnet-02.midnight.network/api/v1/graphql",
-  indexerWsUri: import.meta.env["VITE_INDEXER_WS_URI"] || "wss://indexer.testnet-02.midnight.network/api/v1/graphql/ws",
+  indexerUri:
+    import.meta.env["VITE_INDEXER_URI"] ||
+    "https://indexer.testnet-02.midnight.network/api/v1/graphql",
+  indexerWsUri:
+    import.meta.env["VITE_INDEXER_WS_URI"] ||
+    "wss://indexer.testnet-02.midnight.network/api/v1/graphql/ws",
   nodeUri: import.meta.env["VITE_NODE_URI"] || "https://rpc.testnet-02.midnight.network",
-  proofServerUri: import.meta.env["VITE_PROOF_SERVER_URI"] || "https://proof-server.testnet-02.midnight.network",
+  proofServerUri:
+    import.meta.env["VITE_PROOF_SERVER_URI"] || "https://proof-server.testnet-02.midnight.network",
   contractAddress: import.meta.env["VITE_POLL_CONTRACT_ADDRESS"],
 });
 
@@ -69,7 +74,8 @@ export const detectRuntime = async (walletConnected: boolean): Promise<RuntimeSt
   if (!config.contractAddress)
     return {
       mode: "local",
-      reason: "No deployed poll contract. Run `npm run contract:deploy` and set VITE_POLL_CONTRACT_ADDRESS.",
+      reason:
+        "No deployed poll contract. Run `npm run contract:deploy` and set VITE_POLL_CONTRACT_ADDRESS.",
     };
   if (!walletConnected)
     return { mode: "local", reason: "Connect a Midnight wallet to submit on-chain transactions." };

@@ -45,8 +45,8 @@ providers are Node-oriented), then copy the returned contract address into
 
 ## Circuits
 
-| Circuit | Public effect | Private input |
-| --- | --- | --- |
-| `createPoll` | appends a poll, bumps `pollCount` | creator's secret key (only its commitment is stored) |
-| `closePoll` | flips status to `closed` | creator's secret key (proves ownership) |
-| `vote` | inserts a nullifier, bumps one anonymous tally slot | secret key + chosen option |
+| Circuit      | Public effect                                       | Private input                                        |
+| ------------ | --------------------------------------------------- | ---------------------------------------------------- |
+| `createPoll` | appends a poll, bumps `pollCount`                   | creator's secret key (only its commitment is stored) |
+| `closePoll`  | flips status to `closed`                            | creator's secret key (proves ownership)              |
+| `vote`       | inserts a nullifier, bumps one anonymous tally slot | secret key + chosen option                           |
