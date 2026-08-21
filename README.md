@@ -85,44 +85,60 @@ authoritative.
 
 ## Privacy model
 
+### Privacy Claim
+> **Core Guarantee**: No participant or external observer—including node operators, indexers, poll creators, or other voters—can determine which option a specific voter selected, or associate any voter's identity or wallet address with their vote choice, while still mathematically guaranteeing on-chain that every counted vote is valid, authorized, and cast exactly once per poll.
+
+### What an Observer CAN and CANNOT Learn
+
+| Observer Visibility | Data / Event | Details |
+| :--- | :--- | :--- |
+| **CAN Learn** | **Poll Metadata** | Poll question, candidate options, option count, and open/closed status (the ballot is public by design). |
+| **CAN Learn** | **Creator Commitment** | The creator's public commitment `H("pcp:pk", sk)` to verify authority to close the poll (does not reveal the creator's wallet address). |
+| **CAN Learn** | **Aggregate Tallies** | Aggregate counts per option `tallies[H("pcp:tally", pollId, option)]` as anonymous slots are incremented. |
+| **CAN Learn** | **Spent Nullifiers** | The one-way hash `H("pcp:nullifier", sk, pollId)` added to the on-chain nullifier set when a vote is accepted. |
+| **CAN Learn** | **Transaction Metadata** | Standard blockchain execution metadata (transaction timestamp, block inclusion, gas/fee payment). |
+| **CANNOT Learn** | **Voter Identity ↔ Choice Link** | Which voter picked which option. The voter's choice is kept as a local private witness inside the ZK proof. |
+| **CANNOT Learn** | **Voting Secret Key (`sk`)** | The voter's secret key (`localSecretKey()`), which remains strictly on the client device. |
+| **CANNOT Learn** | **Identity from Nullifier** | Who generated a given nullifier, due to preimage resistance and one-way cryptographic hashing. |
+| **CANNOT Learn** | **Cross-Poll Voter Activity** | Whether two votes in different polls came from the same person (nullifiers across different polls are completely unlinkable). |
+
+---
+
+### Ledger State: Public vs. Private
+
 **Public (written to the ledger)**
 
 | Value | Why it is safe |
 | --- | --- |
-| `pollCount`, poll question, options, status | the ballot itself is meant to be public |
-| `creator` | a commitment `H("pcp:pk", sk)`, not a wallet address |
-| `tallies[H("pcp:tally", pollId, option)]` | an aggregate count, with no voter attached |
-| `nullifiers` | one-way `H("pcp:nullifier", sk, pollId)` values |
+| `pollCount`, poll question, options, status | The ballot itself is meant to be public |
+| `creator` | A commitment `H("pcp:pk", sk)`, not a wallet address |
+| `tallies[H("pcp:tally", pollId, option)]` | An aggregate count, with no voter identity attached |
+| `nullifiers` | One-way `H("pcp:nullifier", sk, pollId)` values |
 
 **Private (never leaves the device)**
 
-- the voting secret key `sk` (witness `localSecretKey()`)
-- the selected option (witness `voteChoice()`)
+- **Voting secret key `sk`** (witness `localSecretKey()`): long-lived private key used to prove authorization and construct nullifiers.
+- **Selected option `choice`** (witness `voteChoice()`): option index supplied privately at proving time.
 
-**How validity is proven.** The `vote` circuit asserts, inside the proof, that the
-poll exists, that it is open, that `choice < poll.optionCount`, and that the
-derived nullifier is unused. If any assert fails, no proof exists and no
-transaction can be built. Frontend checks are for UX only.
+---
 
-**How double voting is prevented.** `nullifier = H("pcp:nullifier", sk, pollId)`
-is deterministic per (student, poll) and is inserted into a public set. A second
-vote with the same key produces the same nullifier and is rejected by the
-contract. Because the hash is one-way and domain-separated, the nullifier reveals
-nothing about `sk`, and nullifiers for different polls are unlinkable.
+### Cryptographic Guarantees & Implementation
 
-**Honest limitation — what is *not* hidden.** The tally increment itself is a
-public state change, so a chain observer can see that *someone* voted for option
-2. What they cannot do is link that increment to a wallet: the transaction
-discloses no voter identity, only the nullifier. So this gives **unlinkability of
-voter ↔ choice**, not concealment of the aggregate delta. Hiding the increments
-too would require homomorphic tallying, which current Compact ledger types do not
-express. This is documented rather than faked.
+**How validity is proven.** The `vote` circuit asserts, inside the zero-knowledge proof:
+1. The target poll exists (`polls.member(pollId)`).
+2. The poll is active and open (`poll.status == PollStatus.open`).
+3. The selected option index is in-bounds (`choice < poll.optionCount`).
+4. The derived nullifier has not been recorded before (`!nullifiers.member(nullifier)`).
 
-**Eligibility (MVP).** Eligibility is "holds a voting secret key", enforced by
-nullifier uniqueness. The architecture is built so this can be tightened without
-touching the UI: replace the nullifier check with a Merkle membership proof over a
-`HistoricMerkleTree` of registered student commitments, adding a merkle-path
-witness. No centralised login is introduced anywhere.
+If any assertion fails, no valid zero-knowledge proof can be constructed and no transaction can be submitted. Frontend checks are for UX only; verification is enforced purely by the Midnight contract circuits.
+
+**How double voting is prevented.** `nullifier = H("pcp:nullifier", sk, pollId)` is deterministic per (student, poll) and is inserted into a public set. A second vote with the same key produces the same nullifier and is rejected by the contract. Because the hash is one-way and domain-separated:
+- The nullifier reveals nothing about `sk`.
+- Nullifiers for different polls are unlinkable (`pollId` is included in the hash preimage).
+
+**Honest limitation — what is *not* hidden.** The tally increment itself is a public state change, so a chain observer can see that *someone* voted for option 2. What they cannot do is link that increment to a wallet: the transaction discloses no voter identity, only the nullifier. So this gives **unlinkability of voter ↔ choice**, not concealment of the aggregate delta. Hiding the increments too would require homomorphic tallying, which current Compact ledger types do not express. This is documented rather than faked.
+
+**Eligibility (MVP).** Eligibility is "holds a voting secret key", enforced by nullifier uniqueness. The architecture is built so this can be tightened without touching the UI: replace the nullifier check with a Merkle membership proof over a `HistoricMerkleTree` of registered student commitments, adding a merkle-path witness. No centralised login is introduced anywhere.
 
 ## Installation
 
