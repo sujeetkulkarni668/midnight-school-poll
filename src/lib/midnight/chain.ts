@@ -31,10 +31,10 @@ export interface ChainConfig {
 }
 
 export const chainConfig = (): ChainConfig => ({
-  indexerUri: import.meta.env["VITE_INDEXER_URI"],
-  indexerWsUri: import.meta.env["VITE_INDEXER_WS_URI"],
-  nodeUri: import.meta.env["VITE_NODE_URI"],
-  proofServerUri: import.meta.env["VITE_PROOF_SERVER_URI"],
+  indexerUri: import.meta.env["VITE_INDEXER_URI"] || "https://indexer.testnet-02.midnight.network/api/v1/graphql",
+  indexerWsUri: import.meta.env["VITE_INDEXER_WS_URI"] || "wss://indexer.testnet-02.midnight.network/api/v1/graphql/ws",
+  nodeUri: import.meta.env["VITE_NODE_URI"] || "https://rpc.testnet-02.midnight.network",
+  proofServerUri: import.meta.env["VITE_PROOF_SERVER_URI"] || "https://proof-server.testnet-02.midnight.network",
   contractAddress: import.meta.env["VITE_POLL_CONTRACT_ADDRESS"],
 });
 
