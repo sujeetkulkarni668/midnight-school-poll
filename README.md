@@ -207,6 +207,26 @@ Covers: poll creation, a successful vote, invalid-option rejection, second-vote
 rejection, result aggregation, non-exposure of private vote data, and interaction
 with a missing/closed poll.
 
+### Test Execution Proof (Passing Test Runs)
+
+The repository includes visual proof of all 7 test cases passing:
+
+- **`testoutput_1.png`**: Terminal execution of `npm test` / Vitest showing all 7 unit test assertions passing.
+- **`testoutput_2.png`**: VS Code test runner and integrated suite view.
+- **`testoutput_3.png`**: Windows PowerShell terminal test execution output.
+
+<p align="center">
+  <img src="testoutput_1.png" alt="testoutput_1" width="800" />
+</p>
+
+<p align="center">
+  <img src="testoutput_2.png" alt="testoutput_2" width="800" />
+</p>
+
+<p align="center">
+  <img src="testoutput_3.png" alt="testoutput_3" width="800" />
+</p>
+
 ## Demo flow
 
 1. Open the app → the campus workshop poll is already there.
